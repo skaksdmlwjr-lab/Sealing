@@ -66,8 +66,8 @@ function initBible() {
     // [중요] 값 변경 시 즉시 loadQueue를 실행하도록 연결
 	bS.onchange = () => { updateChapters(); loadQueue(true); };
 	cS.onchange = () => { loadQueue(true); };
-	sV.oninput = () => { loadQueue(true); };
-	eV.oninput = () => { loadQueue(true); };
+	sV.oninput = () => { loadQueue(true, false); }; // 절 범위 입력 중에는 입력창으로 포커스를 뺏지 않음
+	eV.oninput = () => { loadQueue(true, false); };
 
     updateChapters(); // 첫 실행
 }
@@ -101,7 +101,7 @@ function handleChapterChange() {
 }
 
 // 구절 리스트 준비
-function loadQueue(forceReset = true) {
+function loadQueue(forceReset = true, shouldFocus = true) {
     const bookIdx = bS.value;
     const chIdx = cS.value;
     
@@ -133,11 +133,11 @@ function loadQueue(forceReset = true) {
     if (isRandom) verseQueue.sort(() => Math.random() - 0.5);
     
     index = 0; // 목록이 바뀌면 첫 구절부터 다시 시작
-    loadVerse(); // 화면 최신화
+    loadVerse(shouldFocus); // 화면 최신화
 }
 
 // 현재 구절 화면 표시
-function loadVerse() {
+function loadVerse(shouldFocus = true) {
     if (verseQueue.length === 0) return;
 
     stopTts(); // 절을 이동하면 재생 중이던 음성은 멈춤
@@ -161,7 +161,7 @@ function loadVerse() {
 
     // 화면 이동 시 오타 표시도 현재 입력값에 맞게 갱신
     updateHighlight();
-    iEl.focus();
+    if (shouldFocus) iEl.focus();
 }
 
 // 오타 체크 및 자동 넘김
