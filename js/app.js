@@ -546,12 +546,45 @@ window.addEventListener('resize', () => {
 
 /* ================== 말씀 듣기 (TTS, 브라우저 내장 음성합성) ================== */
 const ttsBtn = document.getElementById('ttsBtn');
+const voiceSelectGroup = document.getElementById('voiceSelectGroup');
+const voiceSelect = document.getElementById('voiceSelect');
 const ttsSupported = 'speechSynthesis' in window;
 let koVoice = null;
 
-function pickKoVoice() {
+// 사용 가능한 한국어 음성 목록을 불러와 저장된 선택값(또는 첫 번째 음성)을 적용
+function loadKoVoices() {
     const voices = speechSynthesis.getVoices();
-    koVoice = voices.find(v => v.lang === 'ko-KR') || voices.find(v => v.lang && v.lang.startsWith('ko')) || null;
+    let koVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('ko'));
+    if (koVoices.length === 0) koVoices = voices; // 한국어 음성이 없으면 전체 목록이라도 선택 가능하게
+
+    populateVoiceSelect(koVoices);
+
+    const savedName = localStorage.getItem('ttsVoiceName');
+    koVoice = koVoices.find(v => v.name === savedName) || koVoices[0] || null;
+}
+
+function populateVoiceSelect(voices) {
+    const savedName = localStorage.getItem('ttsVoiceName');
+    voiceSelect.innerHTML = '';
+
+    if (voices.length === 0) {
+        const opt = document.createElement('option');
+        opt.textContent = '사용 가능한 음성이 없어요';
+        voiceSelect.appendChild(opt);
+        voiceSelect.disabled = true;
+        return;
+    }
+
+    voiceSelect.disabled = false;
+    voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})${v.localService ? '' : ' · 온라인'}`;
+        voiceSelect.appendChild(opt);
+    });
+    if (savedName && voices.some(v => v.name === savedName)) {
+        voiceSelect.value = savedName;
+    }
 }
 
 function setTtsBtnSpeaking(isSpeaking) {
@@ -567,8 +600,14 @@ function stopTts() {
 }
 
 if (ttsSupported) {
-    pickKoVoice();
-    speechSynthesis.onvoiceschanged = pickKoVoice; // 음성 목록은 비동기로 로드됨
+    loadKoVoices();
+    speechSynthesis.onvoiceschanged = loadKoVoices; // 음성 목록은 비동기로 로드됨
+
+    voiceSelect.onchange = () => {
+        const voices = speechSynthesis.getVoices();
+        koVoice = voices.find(v => v.name === voiceSelect.value) || null;
+        localStorage.setItem('ttsVoiceName', voiceSelect.value);
+    };
 
     ttsBtn.onclick = () => {
         if (speechSynthesis.speaking) {
@@ -588,6 +627,7 @@ if (ttsSupported) {
     };
 } else {
     ttsBtn.style.display = 'none'; // 지원하지 않는 브라우저에서는 버튼 숨김
+    voiceSelectGroup.style.display = 'none';
 }
 
 /* ================== 음성으로 입력하기 (STT, 브라우저 내장 Web Speech API) ================== */

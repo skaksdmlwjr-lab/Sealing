@@ -13,7 +13,7 @@
   <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-2xl">
     
     <div class="flex justify-between items-center mb-6 relative">
-      <h1 class="text-xl sm:text-2xl font-bold text-gray-800">⌨️ 성경 타자 · 암송</h1>
+      <h1 class="text-xl sm:text-2xl font-bold text-gray-800">⌨️ 성경 타자 · 암송 <span class="text-xs font-normal text-gray-400 align-middle">v0.260914</span></h1>
       
       <div class="relative">
         <button id="settingsBtn" class="bg-gray-200 p-2 rounded-full hover:bg-gray-300 transition focus:outline-none">
@@ -29,6 +29,10 @@
               <option value="font-serif">명조체</option>
               <option value="font-mono">코딩체</option>
             </select>
+          </div>
+          <div id="voiceSelectGroup" class="space-y-1">
+            <label class="text-xs text-gray-500">🔊 듣기 목소리</label>
+            <select id="voiceSelect" class="w-full border rounded p-1 text-sm bg-gray-50 text-gray-800"></select>
           </div>
           <div class="flex flex-col gap-3">
             <button id="darkBtn" class="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-sm font-bold">🌙 다크모드</button>
@@ -134,7 +138,7 @@
             </section>
             <section>
                 <h3 class="font-bold text-blue-600 mb-1">환경설정</h3>
-                <p>⚙️ 버튼에서 글꼴(고딕·명조체·코딩체), 다크모드, 전체화면, 성구 글자 크기(14~45px)를 바꿀 수 있어요. 설정은 자동 저장돼요.</p>
+                <p>⚙️ 버튼에서 글꼴(고딕·명조체·코딩체), 듣기 목소리, 다크모드, 전체화면, 성구 글자 크기(14~45px)를 바꿀 수 있어요. 설정은 자동 저장돼요.</p>
             </section>
             <section>
                 <h3 class="font-bold text-blue-600 mb-1">오프라인 사용</h3>
