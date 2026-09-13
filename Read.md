@@ -71,7 +71,12 @@
 - TTS는 브라우저/OS에 따라 온라인 음성만 제공될 수 있어, 오프라인에서 소리가 안 나는 환경이 있을 수 있음.
 - (제안 단계) 절·장별 연습 기록(정확도, 연습 횟수, 최근 연습일)을 저장하는 학습 통계 기능 — 아직 미구현.
 
-## 7. 업데이트 로그
+## 7. 배포
+
+- GitHub 저장소: https://github.com/skaksdmlwjr-lab/Sealing
+- GitHub Pages(공개): https://skaksdmlwjr-lab.github.io/Sealing/ — 서비스워커 등록·오프라인 재접속까지 실제 검증됨
+
+## 8. 업데이트 로그
 
 - 도움말 모달 + 첫 방문 코치마크 튜토리얼 추가
 - 말씀 듣기(TTS) 기능 추가 (`speechSynthesis` 기반)
