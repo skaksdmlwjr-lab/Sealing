@@ -141,6 +141,7 @@ function loadVerse() {
     if (verseQueue.length === 0) return;
 
     stopTts(); // 절을 이동하면 재생 중이던 음성은 멈춤
+    stopRecognition(); // 절을 이동하면 음성인식도 중지
 
     const item = verseQueue[index];
     current = item.t;
@@ -587,4 +588,54 @@ if (ttsSupported) {
     };
 } else {
     ttsBtn.style.display = 'none'; // 지원하지 않는 브라우저에서는 버튼 숨김
+}
+
+/* ================== 음성으로 입력하기 (STT, 브라우저 내장 Web Speech API) ================== */
+const micBtn = document.getElementById('micBtn');
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isListening = false;
+
+function setMicBtnListening(listening) {
+    isListening = listening;
+    micBtn.textContent = listening ? '🔴' : '🎤';
+    micBtn.title = listening ? '듣는 중... (클릭하면 중지)' : '음성으로 입력';
+}
+
+function stopRecognition() {
+    if (recognition && isListening) {
+        recognition.stop();
+    }
+    if (SpeechRecognitionCtor) setMicBtnListening(false);
+}
+
+if (SpeechRecognitionCtor) {
+    recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        iEl.value = iEl.value ? (iEl.value + ' ' + transcript) : transcript;
+        iEl.dispatchEvent(new Event('input')); // 오타표시·자동저장을 기존 입력 로직과 동일하게 갱신
+    };
+    recognition.onerror = () => setMicBtnListening(false);
+    recognition.onend = () => setMicBtnListening(false);
+
+    micBtn.onclick = () => {
+        if (isListening) {
+            recognition.stop();
+            return;
+        }
+        stopTts(); // 듣기 중이던 음성은 멈추고 녹음 시작
+        try {
+            recognition.start();
+            setMicBtnListening(true);
+        } catch (err) {
+            setMicBtnListening(false);
+        }
+    };
+} else {
+    micBtn.style.display = 'none'; // 미지원 브라우저(iOS Safari 등)에서는 버튼 숨김
 }

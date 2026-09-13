@@ -40,7 +40,14 @@
 - 절 이동 시 재생 중인 음성은 자동으로 중단됨.
 - 음성 엔진이 온라인 음성만 제공하는 환경(예: 일부 데스크톱 브라우저)에서는 오프라인 상태에서 소리가 안 날 수 있음(알려진 제약, 6장 참고).
 
-### 2.7 오프라인 지원 (PWA)
+### 2.7 음성으로 입력하기 (STT, 보조 입력)
+- 브라우저 내장 `SpeechRecognition`(`webkitSpeechRecognition`) API 사용.
+- 진행도 옆 🎤 버튼을 눌러 말하면 인식된 텍스트가 입력창에 채워짐(자동 제출 없음 — 사용자가 직접 확인/수정 후 진행). 기존 오타표시·자동저장 로직과 그대로 연동됨.
+- **TTS와 달리 완전한 오프라인 기능이 아님** — Chrome/Edge의 음성인식은 서버로 오디오를 보내 처리하므로 인터넷 연결이 필요함.
+- **브라우저 지원 제약**: iOS Safari는 미지원 — 해당 환경에서는 버튼이 자동으로 숨겨짐.
+- 절 이동 시 진행 중인 인식은 자동으로 중지됨.
+
+### 2.8 오프라인 지원 (PWA)
 - `manifest.json` + `js/sw.js`로 설치형 앱(홈 화면 추가) 및 오프라인 캐싱 지원.
 - 서비스워커가 `index.html`, `css/*`, `js/app.js`, `js/Bible.js`, `manifest.json`을 캐싱.
 
@@ -82,3 +89,5 @@
 - 말씀 듣기(TTS) 기능 추가 (`speechSynthesis` 기반)
 - 서비스워커 등록 버그 수정: `sw.js`가 `js/` 폴더 안에 있어 `cache.addAll`이 잘못된 경로(`js/index.html` 등)를 요청해 설치가 조용히 실패하던 문제. `sw.js`를 프로젝트 루트로 옮기고 `app.js`에 `navigator.serviceWorker.register('sw.js')` 등록 코드를 추가해 실제로 오프라인 캐싱이 동작하도록 수정
 - `icon-192.png`, `icon-512.png` 추가 (앱 테마색 배경 + ⌨️ 아이콘). `manifest.json`에 512 항목 반영, `sw.js` 캐시 목록에도 포함. PWABuilder 등으로 APK를 만들 때도 512 아이콘이 필요해 함께 준비함
+- GitHub Pages로 배포 (https://skaksdmlwjr-lab.github.io/Sealing/)
+- 음성으로 입력하기(STT) 보조 입력 기능 추가 (`SpeechRecognition` 기반, iOS Safari 미지원·인터넷 필요)
