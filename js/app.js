@@ -64,8 +64,8 @@ function initBible() {
     });
 
     // [중요] 값 변경 시 즉시 loadQueue를 실행하도록 연결
-	bS.onchange = () => { updateChapters(); loadQueue(true); };
-	cS.onchange = () => { loadQueue(true); };
+	bS.onchange = () => { updateChapters(); loadQueue(true, false); }; // 권/장 선택은 입력창으로 포커스를 옮기지 않음
+	cS.onchange = () => { loadQueue(true, false); };
 	sV.oninput = () => { loadQueue(true, false); }; // 절 범위 입력 중에는 입력창으로 포커스를 뺏지 않음
 	eV.oninput = () => { loadQueue(true, false); };
 
@@ -96,8 +96,8 @@ function handleChapterChange() {
 
     sV.value = 1;                // 시작절 1로 고정
     eV.value = verseData.length;  // 해당 장의 마지막 절 번호 자동 입력
-    
-    loadQueue(true);
+
+    loadQueue(true, false);
 }
 
 // 구절 리스트 준비
