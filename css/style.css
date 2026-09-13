@@ -1,0 +1,317 @@
+/* 폰트 정의 (구글 폰트 등 활용) */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap');
+
+.font-sans { font-family: 'Pretendard', sans-serif; }
+.font-serif { font-family: 'Noto Serif KR', serif; }
+.font-mono { font-family: 'Cascadia Code', monospace; }
+
+/* 드롭다운 애니메이션 */
+#settingsMenu {
+    transition: all 0.2s ease-out;
+    transform-origin: top right;
+}
+
+#settingsMenu.hidden {
+    display: none;
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+/* 다크모드 커스텀 스타일 */
+body.dark-mode {
+    background-color: #1a202c; /* bg-gray-900 */
+    color: #e2e8f0;            /* text-gray-200 */
+}
+
+body.dark-mode #settingsMenu {
+    background-color: #2d3748; /* bg-gray-800 */
+    border-color: #4a5568;
+    color: white;
+}
+
+/* 타자 가이드 영역 스타일 */
+#hEl {
+    min-height: 1.5em;
+    line-height: 1.6;
+    letter-spacing: 0.05em;
+}
+
+/* 성구 표시 영역 스타일 조정 */
+#question {
+    line-height: 1.5;         /* 글자 크기에 비례하여 줄 간격 설정 */
+    height: auto;             /* 높이를 고정하지 않음 */
+    min-height: 1.2em;        /* 최소 높이만 설정 */
+    word-break: keep-all;     /* 단어 단위로 줄바꿈 (가독성 향상) */
+    overflow-wrap: break-word; /* 긴 단어는 자동 줄바꿈 */
+    margin-bottom: 1rem;
+    transition: font-size 0.2s ease; /* 크기 변경 시 부드럽게 적용 */
+}
+
+/* 오타 표시 영역도 동일하게 조정 */
+#highlight {
+    line-height: 1.5;
+    height: auto;
+    min-height: 1.5em;
+    margin-bottom: 1rem;
+}
+
+/* 다크모드 전용 스타일 상세 설정 */
+body.dark {
+    background-color: #1a202c !important; /* 배경색 어둡게 */
+    color: #f7fafc !important;            /* 기본 텍스트 밝게 */
+}
+
+/* 1. 성경 타자 암송 타이틀 (h1 등) */
+body.dark h1, body.dark .title {
+    color: #ffffff !important;
+}
+
+/* 2. 문제 출력되는 부분 (성구 영역) */
+body.dark #question {
+    color: #e2e8f0 !important; /* 밝은 회색으로 눈의 피로 감소 */
+    background-color: transparent !important;
+}
+
+/* 3 & 4. 다크모드 및 창모드 버튼 (설정창 내부 버튼) */
+body.dark #darkBtn, 
+body.dark #fullScreenBtn {
+    background-color: #4a5568 !important; /* 짙은 회색 배경 */
+    color: #ffffff !important;            /* 흰색 글자 */
+    border: 1px solid #718096;           /* 테두리 추가로 구분감 확보 */
+}
+
+/* 버튼에 호버 효과 추가 (선택 사항) */
+body.dark #darkBtn:hover, 
+body.dark #fullScreenBtn:hover {
+    background-color: #2d3748 !important;
+}
+
+/* 오타 표시 영역 (다크모드에서도 잘 보이도록) */
+body.dark #highlight {
+    color: #cbd5e0 !important;
+}
+/* 입력창, 선택창 다크모드 최적화 */
+body.dark select, 
+body.dark input, 
+body.dark textarea {
+    background-color: #1a202c !important;
+    color: #ffffff !important;
+    border: 1px solid #4a5568 !important;
+}
+
+/* 옵션(Option) 배경색 수정 (일부 브라우저 대응) */
+body.dark option {
+    background-color: #2d3748;
+    color: white;
+}
+/* 상자 배경색 다크모드 강제 적용 */
+body.dark .bg-white {
+    background-color: #2d3748 !important; /* 다크 그레이 색상 */
+    color: #f7fafc !important;            /* 텍스트 밝게 */
+    border-color: #4a5568 !important;     /* 테두리도 어둡게 */
+}
+
+/* 설정창 메뉴 내부도 어둡게 */
+body.dark #settingsMenu {
+    background-color: #2d3748 !important;
+    border: 1px solid #4a5568;
+}
+
+/* 그림자 제거 또는 변경 (다크모드에선 그림자가 너무 튀면 어색함) */
+body.dark .shadow-xl, body.dark .shadow-2xl {
+    shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* 다크모드 설정창 텍스트 가독성 강화 */
+body.dark #settingsMenu label, 
+body.dark #settingsMenu h3, 
+body.dark #settingsMenu .text-gray-700,
+body.dark #settingsMenu .text-gray-800 {
+    color: #f9fafb !important; /* 거의 흰색에 가까운 밝은 회색 */
+    font-weight: 600;           /* 글자를 조금 더 두껍게 해서 시인성 확보 */
+}
+
+/* 성구 크기 숫자 표시 부분 */
+body.dark #fontSizeValue {
+    color: #60a5fa !important; /* 밝은 하늘색으로 강조 */
+}
+
+/* ================== 사용법 튜토리얼(코치마크) ================== */
+#tutorialHighlight,
+#tutorialTooltip {
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+#tutorialHighlight {
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.65);
+    border: 2px solid #4A90E2;
+    background: transparent;
+}
+
+body.dark #tutorialHighlight {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.8);
+    border-color: #60a5fa;
+}
+
+body.dark #tutorialTooltip {
+    background-color: #2d3748 !important;
+    color: #f7fafc;
+}
+
+body.dark #tutorialTooltip #tutorialTitle {
+    color: #ffffff !important;
+}
+
+body.dark #tutorialTooltip #tutorialText {
+    color: #e2e8f0 !important;
+}
+
+body.dark #tutorialTooltip #tutorialSkip {
+    color: #a0aec0 !important;
+}
+
+/* 도움말 모달 목록 표시 (Tailwind list-disc 보정) */
+#helpModal ul {
+    list-style: disc;
+}
+
+/* 폰트 선택(Select)창 내부 글자 */
+body.dark #fontSelect {
+    color: #ffffff !important;
+    background-color: #374151 !important;
+}
+
+/* 전체화면/다크모드 버튼 안의 글자 */
+body.dark #darkBtn, 
+body.dark #fullScreenBtn {
+    color: #ffffff !important;
+}
+
+/* 채점 팝업 다크모드 최적화 */
+body.dark #scoreModal > div {
+    background-color: #2d3748 !important; /* 모달 전체 배경 */
+    color: #f7fafc !important;
+}
+
+body.dark #scoreModal h2 {
+    color: #ffffff !important; /* 제목 텍스트 */
+}
+
+body.dark #scoreContent {
+    background-color: #1a202c !important; /* 결과 리스트 배경 */
+    color: #edf2f7 !important;
+    border-radius: 0.5rem;
+}
+
+/* 채점 내역 중 각 절의 텍스트 색상 */
+body.dark .border-b.pb-4 {
+    border-color: #4a5568 !important;
+}
+/* --- 채점 팝업 다크모드 기본 시인성 강화 --- */
+
+/* 1. 모달 창 본체 */
+body.dark #scoreModal > div {
+    background-color: #374151 !important; /* 조금 더 밝은 gray-700 */
+    color: #ffffff !important;           /* 기본 글자색 흰색 */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* 2. 상단 제목 영역 */
+body.dark #scoreModal h2 {
+    color: #ffffff !important;
+    border-bottom-color: #4b5563 !important;
+}
+
+/* 3. 채점 내역 리스트 영역 */
+body.dark #scoreContent {
+    background-color: #1f2937 !important; /* 내부 리스트 배경을 살짝 어둡게 하여 대비 강조 */
+    color: #f9fafb !important;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+/* 4. '원문'과 '입력' 텍스트를 아주 밝게 변경 */
+body.dark .text-blue-600 {
+    color: #93c5fd !important; /* 밝은 하늘색 (원문) */
+    font-weight: 600;
+}
+
+body.dark .text-gray-600 {
+    color: #e5e7eb !important; /* 아주 밝은 회색 (사용자 입력) */
+}
+
+/* 5. 구분선 */
+body.dark .border-b {
+    border-color: #4b5563 !important;
+}
+
+/* 6. 결과 요약 텍스트 (정답/오답 개수 등) */
+body.dark #scoreContent b, 
+body.dark #scoreContent strong {
+    color: #fbbf24 !important; /* 강조 텍스트는 노란색으로 눈에 띄게 */
+}
+
+/* --- 채점 팝업 다크모드 시인성 최종 개선 --- */
+
+/* 1. 모달 전체 배경: 너무 검지 않은 진회색으로 조정 */
+body.dark #scoreModal > div {
+    background-color: #2d3748 !important; 
+    color: #ffffff !important;
+}
+
+/* 2. 채점 리스트 내부: 배경을 살짝 더 밝게 하고 글자를 완전 흰색으로 */
+body.dark #scoreContent {
+    background-color: #374151 !important; /* 내부를 더 밝게 수정 */
+    color: #ffffff !important;
+    border: 1px solid #4a5568;
+}
+
+/* 3. '원문' 텍스트: 형광 느낌의 밝은 하늘색 (드래그 안 해도 잘 보임) */
+body.dark .text-blue-600 {
+    color: #60a5fa !important; 
+    font-weight: bold;
+}
+
+/* 4. '입력' 텍스트: 아주 밝은 연회색 */
+body.dark .text-gray-600 {
+    color: #f3f4f6 !important;
+}
+
+/* 5. 구분선: 가독성을 위해 살짝 밝게 */
+body.dark .border-b {
+    border-color: #4b5563 !important;
+}
+
+/* 6. 점수/통계 강조: 밝은 노란색 */
+body.dark #scoreContent b, 
+body.dark #scoreContent strong {
+    color: #fbbf24 !important;
+}
+
+/* 1. text-gray-700 클래스를 가진 요소들을 다크모드에서 흰색으로 강제 변경 */
+body.dark .text-gray-700,
+body.dark h2.text-gray-800,
+body.dark #scoreModal h2 {
+    color: #ffffff !important;
+}
+
+/* 2. 채점 팝업 내부의 모든 기본 텍스트 밝게 */
+body.dark #scoreContent {
+    background-color: #1a202c !important; /* 배경은 아주 어둡게 */
+    color: #ffffff !important;           /* 글자는 완전 흰색 */
+}
+
+/* 3. '입력' 부분 텍스트 (기존 gray-600 등) 명도 최대로 */
+body.dark .text-gray-600 {
+    color: #f9fafb !important;
+}
+
+/* 4. '원문' 파란색 텍스트도 더 밝은 하늘색으로 (가독성 확보) */
+body.dark .text-blue-600 {
+    color: #93c5fd !important;
+}
+
+/* 5. 팝업 하단이나 목록의 연한 글씨들 */
+body.dark .text-sm.text-gray-500 {
+    color: #d1d5db !important;
+}

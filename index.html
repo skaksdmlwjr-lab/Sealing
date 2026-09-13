@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>성경 타자 · 암송</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tailwind.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center px-2 sm:px-4 font-sans">
+
+  <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-2xl">
+    
+    <div class="flex justify-between items-center mb-6 relative">
+      <h1 class="text-xl sm:text-2xl font-bold text-gray-800">⌨️ 성경 타자 · 암송</h1>
+      
+      <div class="relative">
+        <button id="settingsBtn" class="bg-gray-200 p-2 rounded-full hover:bg-gray-300 transition focus:outline-none">
+          <span class="text-xl">⚙️</span>
+        </button>
+        
+        <div id="settingsMenu" class="hidden absolute top-full right-0 mt-2 w-56 bg-white border rounded-lg shadow-xl z-50 p-4 space-y-4 text-left">
+          <h4 class="font-bold border-b pb-2 text-gray-700">환경 설정</h4>
+          <div class="space-y-1">
+            <label class="text-xs text-gray-500">글꼴 선택</label>
+            <select id="fontSelect" class="w-full border rounded p-1 text-sm bg-gray-50 text-gray-800">
+              <option value="font-sans">기본 고딕</option>
+              <option value="font-serif">명조체</option>
+              <option value="font-mono">코딩체</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-3">
+            <button id="darkBtn" class="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-sm font-bold">🌙 다크모드</button>
+            <button id="fullScreenBtn" class="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-sm font-bold">🖥️ 전체화면</button>
+          </div>
+		  <div class="p-2 space-y-3 border-t mt-2">
+			<div class="flex justify-between items-center">
+				<label class="text-sm font-bold text-gray-700">성구 글자 크기</label>
+				<span id="fontSizeValue" class="text-blue-600 font-bold text-sm">18px</span>
+			</div>
+			<div class="relative flex items-center">
+				<span class="text-xs text-gray-400 mr-2">A</span>
+				<input id="fontSizeRange" type="range" min="14" max="45" value="18"
+					   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+				<span class="text-xl text-gray-400 ml-2">A</span>
+			</div>
+		  </div>
+          <div class="pt-2 border-t">
+            <button id="helpBtn" class="w-full py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-bold hover:bg-blue-100 transition">❓ 도움말 보기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="bcGroup" class="grid grid-cols-2 gap-2 mb-4">
+      <select id="bookSelect" class="border p-2 rounded-lg bg-gray-50"></select>
+      <select id="chapterSelect" class="border p-2 rounded-lg bg-gray-50"></select>
+    </div>
+
+    <div id="verseGroup" class="flex gap-2 mb-4">
+      <input id="startVerse" type="number" placeholder="시작 절" min="1" value="1" class="border p-2 rounded-lg w-full text-sm" />
+      <input id="endVerse" type="number" placeholder="끝 절" min="1" class="border p-2 rounded-lg w-full text-sm" />
+    </div>
+
+    <div id="modeGroup" class="flex flex-wrap gap-2 mb-4">
+      <button id="randomBtn" class="px-4 py-2 rounded text-white font-bold bg-gray-400">무작위</button>
+      <button id="memoryBtn" class="px-4 py-2 rounded text-white font-bold bg-gray-400">암기모드</button>
+      <button id="typoBtn" class="px-4 py-2 rounded text-white font-bold bg-gray-400">오타표시</button>
+    </div>
+
+    <div class="flex justify-between items-center mb-1">
+        <span id="progress" class="text-xs font-bold text-blue-500"></span>
+        <button id="ttsBtn" class="text-lg px-2 py-1 rounded hover:bg-gray-200 transition" title="말씀 듣기">🔊</button>
+    </div>
+    <div id="question" class="mb-2 text-lg font-medium text-gray-700 min-h-[3rem]"></div>
+    <div id="highlight" class="mb-2 min-h-[1.5rem] break-all"></div>
+    <textarea id="input" rows="4" class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 outline-none transition" placeholder="여기에 타이핑하세요..."></textarea>
+
+    <div class="mt-4 flex justify-between items-center gap-4">
+      <div id="navGroup" class="flex gap-2">
+        <button id="prev" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition font-bold">이전</button>
+        <button id="next" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition font-bold">다음</button>
+      </div>
+    </div>
+  </div>
+  <div id="scoreModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-800">📝 채점 결과</h2>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div id="scoreContent" class="p-6 overflow-y-auto space-y-6 flex-1 text-sm sm:text-base">
+            </div>
+        <div class="p-4 border-t text-center">
+            <button onclick="closeModal()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-blue-700 transition">확인</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="helpModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-800">❓ 도움말</h2>
+            <button onclick="closeHelpModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-5 flex-1 text-sm sm:text-base text-gray-700">
+            <section>
+                <h3 class="font-bold text-blue-600 mb-1">시작하는 방법</h3>
+                <p>① 권과 장을 고르면 절 범위가 자동으로 채워져요 → ② 필요하면 시작 절·끝 절을 직접 조정하세요 → ③ 입력창에 말씀을 그대로 옮겨 적고 Enter로 다음 절로 넘어가요 (줄바꿈은 Shift+Enter).</p>
+            </section>
+            <section>
+                <h3 class="font-bold text-blue-600 mb-1">연습 모드 3가지</h3>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><b>무작위</b> — 절 순서를 섞어요. 입력해둔 내용은 지워지지 않아요.</li>
+                    <li><b>암기모드</b> — 본문을 가리고 기억으로 입력해요. 켜면 오타표시가 자동으로 꺼져요.</li>
+                    <li><b>오타표시</b> — 입력하면서 틀린 글자를 바로 빨간색으로 보여줘요.</li>
+                </ul>
+            </section>
+            <section>
+                <h3 class="font-bold text-blue-600 mb-1">말씀 듣기</h3>
+                <p>🔊 버튼을 누르면 현재 절을 소리로 들을 수 있어요. 보지 않고 듣기만 한 뒤 받아쓰는 연습에 활용해보세요. 음성 엔진에 따라 인터넷 연결이 있을 때 더 자연스러운 목소리가 나올 수 있어요.</p>
+            </section>
+            <section>
+                <h3 class="font-bold text-blue-600 mb-1">채점 결과</h3>
+                <p>암기모드에서 마지막 절까지 마치면 전체 채점을 볼 수 있어요. 절마다 정답과 내가 쓴 답을 비교해 틀린 글자를 표시해줘요.</p>
+            </section>
+            <section>
+                <h3 class="font-bold text-blue-600 mb-1">환경설정</h3>
+                <p>⚙️ 버튼에서 글꼴(고딕·명조체·코딩체), 다크모드, 전체화면, 성구 글자 크기(14~45px)를 바꿀 수 있어요. 설정은 자동 저장돼요.</p>
+            </section>
+            <section>
+                <h3 class="font-bold text-blue-600 mb-1">오프라인 사용</h3>
+                <p>한 번 접속하면 이후로는 인터넷 없이도 계속 연습할 수 있어요. 브라우저의 "홈 화면에 추가"로 설치하면 앱처럼 바로 실행할 수 있어요.</p>
+            </section>
+        </div>
+        <div class="p-4 border-t flex justify-center gap-2">
+            <button id="helpReplayBtn" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg font-bold hover:bg-gray-300 transition">🎯 사용법 둘러보기</button>
+            <button onclick="closeHelpModal()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-blue-700 transition">확인</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="tutorialOverlay" class="hidden fixed inset-0 z-[200]">
+    <div id="tutorialHighlight" class="fixed rounded-lg pointer-events-none"></div>
+    <div id="tutorialTooltip" class="fixed bg-white rounded-xl shadow-2xl p-4 w-72 max-w-[90vw]">
+        <div class="flex justify-between items-start mb-2">
+            <span id="tutorialStepLabel" class="text-xs font-bold text-blue-500"></span>
+            <button id="tutorialSkip" class="text-gray-400 hover:text-gray-600 text-sm">건너뛰기</button>
+        </div>
+        <h4 id="tutorialTitle" class="font-bold text-gray-800 mb-1"></h4>
+        <p id="tutorialText" class="text-sm text-gray-600 mb-4"></p>
+        <div class="flex justify-between items-center">
+            <button id="tutorialPrev" class="text-sm text-gray-500 hover:text-gray-700">← 이전</button>
+            <button id="tutorialNext" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700">다음</button>
+        </div>
+    </div>
+  </div>
+
+  <script src="js/Bible.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
