@@ -47,11 +47,32 @@ window.onload = () => {
 // 서비스워커 등록 (file://로 직접 열었을 때는 지원되지 않으므로 http(s)에서만 시도)
 function registerServiceWorker() {
 	const isHttp = location.protocol === 'http:' || location.protocol === 'https:';
-	if ('serviceWorker' in navigator && isHttp) {
-		navigator.serviceWorker.register('sw.js')
-			.catch(err => console.warn('서비스워커 등록 실패:', err));
-	}
+	if (!('serviceWorker' in navigator) || !isHttp) return;
+
+	// 페이지 로드 시점에 이미 이 앱을 제어하는 서비스워커가 있었는지 (= 재방문인지) 기록
+	const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+
+	navigator.serviceWorker.register('sw.js')
+		.then((reg) => {
+			// 앱이 다시 화면에 보일 때마다(백그라운드에서 돌아올 때) 새 버전이 있는지 능동적으로 확인
+			document.addEventListener('visibilitychange', () => {
+				if (document.visibilityState === 'visible') reg.update();
+			});
+		})
+		.catch(err => console.warn('서비스워커 등록 실패:', err));
+
+	// 새 서비스워커가 제어권을 넘겨받으면(=새 버전이 준비되면) 발생.
+	// 단, 최초 설치 때도 한 번 발생하므로 "재방문 중 갱신"일 때만 배너를 띄움
+	navigator.serviceWorker.oncontrollerchange = () => {
+		if (hadControllerAtLoad) showUpdateBanner();
+	};
 }
+
+function showUpdateBanner() {
+	document.getElementById('updateBanner').classList.remove('hidden');
+}
+
+document.getElementById('updateReloadBtn').onclick = () => location.reload();
 
 // 성경 목록 초기화
 function initBible() {
