@@ -699,6 +699,9 @@ function stopTts() {
     if (ttsSupported && speechSynthesis.speaking) {
         speechSynthesis.cancel();
     }
+    if (neuralAudioEl && !neuralAudioEl.paused) {
+        neuralAudioEl.pause();
+    }
     if (ttsSupported) setTtsBtnSpeaking(false);
 }
 
@@ -713,6 +716,10 @@ if (ttsSupported) {
     };
 
     ttsBtn.onclick = () => {
+        if (neuralTtsEnabled && neuralSynthesizer) {
+            playNeuralTts();
+            return;
+        }
         if (speechSynthesis.speaking) {
             stopTts();
             return;
@@ -731,6 +738,144 @@ if (ttsSupported) {
 } else {
     ttsBtn.style.display = 'none'; // 지원하지 않는 브라우저에서는 버튼 숨김
     voiceSelectGroup.style.display = 'none';
+}
+
+/* ================== 고품질 음성 (신경망 TTS, 자체 호스팅) ================== */
+// 모델: Xenova/mms-tts-kor (CC-BY-NC 4.0, Meta MMS 프로젝트). js/tts/ 아래에 라이브러리·모델을 직접 받아둠(외부 CDN 미사용).
+const neuralTtsBtn = document.getElementById('neuralTtsBtn');
+const neuralTtsStatus = document.getElementById('neuralTtsStatus');
+
+let neuralTtsEnabled = localStorage.getItem('neuralTtsEnabled') === 'true';
+let neuralSynthesizer = null;
+let neuralTtsLoading = false;
+let neuralGenerating = false;
+let neuralAudioEl = null;
+
+// 한글 -> 로마자 변환 (MMS-TTS 모델이 uroman으로 로마자 변환된 텍스트를 입력으로 기대하기 때문)
+const ROMAN_INITIALS = ['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','c','k','t','p','h'];
+const ROMAN_MEDIALS = ['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+const ROMAN_FINALS = ['','g','kk','gs','n','nj','nh','d','l','lg','lm','lb','ls','lt','lp','lh','m','b','bs','s','ss','ng','j','c','k','t','p','h'];
+function romanizeKorean(str) {
+    let out = '';
+    for (const ch of str) {
+        const code = ch.codePointAt(0);
+        if (code >= 0xAC00 && code <= 0xD7A3) {
+            const idx = code - 0xAC00;
+            out += ROMAN_INITIALS[Math.floor(idx / (21 * 28))] + ROMAN_MEDIALS[Math.floor((idx % (21 * 28)) / 28)] + ROMAN_FINALS[idx % 28];
+        } else {
+            out += ch;
+        }
+    }
+    return out;
+}
+
+function floatTo16BitWav(floatSamples, sampleRate) {
+    const buffer = new ArrayBuffer(44 + floatSamples.length * 2);
+    const view = new DataView(buffer);
+    const writeString = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + floatSamples.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, floatSamples.length * 2, true);
+    let offset = 44;
+    for (let i = 0; i < floatSamples.length; i++, offset += 2) {
+        const s = Math.max(-1, Math.min(1, floatSamples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function updateNeuralTtsUI() {
+    if (!neuralTtsBtn) return;
+    if (neuralTtsLoading) {
+        neuralTtsBtn.textContent = '🎙️ 고품질 음성: 불러오는 중...';
+        neuralTtsBtn.className = 'w-full py-2 rounded-lg bg-yellow-100 text-yellow-700 text-sm font-bold transition';
+        neuralTtsStatus.textContent = '최초 1회 다운로드 중이에요. 잠시만 기다려주세요.';
+    } else if (neuralTtsEnabled && neuralSynthesizer) {
+        neuralTtsBtn.textContent = '🎙️ 고품질 음성: 켜짐';
+        neuralTtsBtn.className = 'w-full py-2 rounded-lg bg-purple-600 text-white text-sm font-bold transition';
+        neuralTtsStatus.textContent = '🔊 버튼을 누르면 이 목소리로 들려요.';
+    } else {
+        neuralTtsBtn.textContent = '🎙️ 고품질 음성: 꺼짐';
+        neuralTtsBtn.className = 'w-full py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-bold transition';
+        neuralTtsStatus.textContent = '켜면 더 자연스러운 목소리로 들을 수 있어요 (최초 1회 약 38MB 다운로드).';
+    }
+}
+
+async function loadNeuralTts() {
+    if (neuralSynthesizer || neuralTtsLoading) return;
+    neuralTtsLoading = true;
+    updateNeuralTtsUI();
+    try {
+        const { pipeline, env } = await import('./tts/lib/transformers.min.js');
+        env.allowRemoteModels = false;
+        env.localModelPath = 'js/tts/models/';
+        env.backends.onnx.wasm.wasmPaths = 'js/tts/lib/';
+        neuralSynthesizer = await pipeline('text-to-speech', 'Xenova/mms-tts-kor', { quantized: true });
+        neuralTtsLoading = false;
+        updateNeuralTtsUI();
+    } catch (err) {
+        console.warn('고품질 음성 로드 실패:', err);
+        neuralTtsLoading = false;
+        neuralTtsEnabled = false;
+        localStorage.setItem('neuralTtsEnabled', 'false');
+        updateNeuralTtsUI();
+        neuralTtsStatus.textContent = '불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.';
+    }
+}
+
+async function playNeuralTts() {
+    if (neuralGenerating) return;
+    if (neuralAudioEl && !neuralAudioEl.paused) {
+        neuralAudioEl.pause();
+        setTtsBtnSpeaking(false);
+        return;
+    }
+    if (!current) return;
+
+    neuralGenerating = true;
+    ttsBtn.textContent = '⏳';
+    ttsBtn.title = '음성 생성 중...';
+
+    try {
+        const romanized = romanizeKorean(current);
+        const output = await neuralSynthesizer(romanized);
+        const url = URL.createObjectURL(floatTo16BitWav(output.audio, output.sampling_rate));
+        neuralAudioEl = new Audio(url);
+        neuralAudioEl.onplay = () => setTtsBtnSpeaking(true);
+        neuralAudioEl.onended = () => { setTtsBtnSpeaking(false); URL.revokeObjectURL(url); };
+        neuralAudioEl.onerror = () => setTtsBtnSpeaking(false);
+        await neuralAudioEl.play();
+    } catch (err) {
+        console.warn('고품질 음성 생성 실패:', err);
+        setTtsBtnSpeaking(false);
+    } finally {
+        neuralGenerating = false;
+    }
+}
+
+if (neuralTtsBtn) {
+    neuralTtsBtn.onclick = () => {
+        neuralTtsEnabled = !neuralTtsEnabled;
+        localStorage.setItem('neuralTtsEnabled', neuralTtsEnabled);
+        if (neuralTtsEnabled) {
+            loadNeuralTts();
+        } else {
+            stopTts();
+            updateNeuralTtsUI();
+        }
+    };
+    updateNeuralTtsUI();
+    if (neuralTtsEnabled) loadNeuralTts(); // 이전에 켜뒀다면 자동으로 다시 로드 (캐시돼 있어 빠름)
 }
 
 /* ================== 음성으로 입력하기 (STT, 브라우저 내장 Web Speech API) ================== */
