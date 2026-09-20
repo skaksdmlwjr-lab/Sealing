@@ -66,8 +66,6 @@ function initBible() {
     // [중요] 값 변경 시 즉시 loadQueue를 실행하도록 연결
 	bS.onchange = () => { updateChapters(); loadQueue(true, false); }; // 권/장 선택은 입력창으로 포커스를 옮기지 않음
 	cS.onchange = () => { handleChapterChange(); }; // 장만 바꿔도 절 범위(시작절/끝절)를 새 장에 맞게 갱신
-	sV.oninput = () => { loadQueue(true, false); }; // 절 범위 입력 중에는 입력창으로 포커스를 뺏지 않음
-	eV.oninput = () => { loadQueue(true, false); };
 
     updateChapters(); // 첫 실행
 }
@@ -131,7 +129,9 @@ function loadQueue(forceReset = true, shouldFocus = true) {
 
     // 무작위 모드일 경우 섞기
     if (isRandom) verseQueue.sort(() => Math.random() - 0.5);
-    
+
+    updateVerseRangeLabel();
+
     index = 0; // 목록이 바뀌면 첫 구절부터 다시 시작
     loadVerse(shouldFocus); // 화면 최신화
 }
@@ -430,6 +430,88 @@ function initFullScreen() {
     };
 }
 
+/* ================== 절 범위 선택 (탭으로 고르는 모바일 친화 피커) ================== */
+const verseRangeBtn = document.getElementById('verseRangeBtn');
+const verseRangeLabel = document.getElementById('verseRangeLabel');
+const verseModal = document.getElementById('verseModal');
+const verseModalClose = document.getElementById('verseModalClose');
+const verseModalHint = document.getElementById('verseModalHint');
+const verseModalAll = document.getElementById('verseModalAll');
+const verseGrid = document.getElementById('verseGrid');
+const verseModalApply = document.getElementById('verseModalApply');
+
+let pickerStart = 1;
+let pickerEnd = 1;
+let pickerMax = 1;
+
+function updateVerseRangeLabel() {
+    verseRangeLabel.textContent = `${sV.value} ~ ${eV.value}절`;
+}
+
+function openVerseModal() {
+    const bookIdx = bS.value, chIdx = cS.value;
+    if (!bibleData || !bibleData.books[bookIdx]) return;
+    const verseData = bibleData.books[bookIdx].chapters[chIdx].verses;
+
+    pickerMax = verseData.length;
+    pickerStart = parseInt(sV.value) || 1;
+    pickerEnd = parseInt(eV.value) || pickerMax;
+
+    renderVerseGrid();
+    verseModal.classList.remove('hidden');
+}
+
+function renderVerseGrid() {
+    verseGrid.innerHTML = '';
+    for (let i = 1; i <= pickerMax; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = i;
+        btn.className = verseBtnClass(i);
+        btn.onclick = () => handleVerseTap(i);
+        verseGrid.appendChild(btn);
+    }
+    verseModalHint.textContent = `${pickerStart} ~ ${pickerEnd}절`;
+}
+
+function verseBtnClass(i) {
+    const isEdge = (i === pickerStart || i === pickerEnd);
+    const inRange = (i >= pickerStart && i <= pickerEnd);
+    let cls = 'py-2 rounded-lg text-sm font-bold border transition ';
+    if (isEdge) cls += 'bg-blue-600 text-white border-blue-600';
+    else if (inRange) cls += 'bg-blue-100 text-blue-700 border-blue-200';
+    else cls += 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100';
+    return cls;
+}
+
+// 범위 밖을 탭하면 그쪽으로 범위를 넓히고, 범위 안(경계 포함)을 탭하면 그 절 하나로 다시 시작
+function handleVerseTap(i) {
+    if (i < pickerStart) {
+        pickerStart = i;
+    } else if (i > pickerEnd) {
+        pickerEnd = i;
+    } else {
+        pickerStart = i;
+        pickerEnd = i;
+    }
+    renderVerseGrid();
+}
+
+verseRangeBtn.onclick = openVerseModal;
+verseModalClose.onclick = () => verseModal.classList.add('hidden');
+verseModalApply.onclick = () => {
+    sV.value = pickerStart;
+    eV.value = pickerEnd;
+    verseModal.classList.add('hidden');
+    loadQueue(true, false);
+};
+verseModalAll.onclick = () => {
+    sV.value = 1;
+    eV.value = pickerMax;
+    verseModal.classList.add('hidden');
+    loadQueue(true, false);
+};
+
 /* ================== 도움말 모달 ================== */
 function initHelp() {
     const helpBtn = document.getElementById('helpBtn');
@@ -463,7 +545,7 @@ const tutorialSkip = document.getElementById('tutorialSkip');
 
 const tutorialSteps = [
     { target: '#bcGroup', title: '1. 본문 고르기', text: '먼저 외우고 싶은 성경의 권과 장을 선택하세요. 장을 바꾸면 절 범위가 자동으로 채워져요.' },
-    { target: '#verseGroup', title: '2. 절 범위 정하기', text: '시작 절과 끝 절을 직접 입력해 원하는 구간만 골라 연습할 수 있어요.' },
+    { target: '#verseGroup', title: '2. 절 범위 정하기', text: '버튼을 눌러 절 번호를 탭하면 원하는 구간만 골라 연습할 수 있어요.' },
     { target: '#modeGroup', title: '3. 연습 모드 고르기', text: '무작위(순서 섞기), 암기모드(본문 가리기), 오타표시(실시간 대조) 중 원하는 모드를 켜보세요.' },
     { target: '#input', title: '4. 타이핑하기', text: '화면에 나온 말씀을 그대로 옮겨 적어보세요. 오타표시를 켜두면 틀린 글자가 바로 빨간색으로 보여요. 🔊 버튼을 누르면 말씀을 소리로 듣고 받아쓸 수도 있어요.' },
     { target: '#navGroup', title: '5. 절 이동하기', text: 'Enter 키를 누르거나 다음 버튼으로 다음 절로 넘어가요. Shift+Enter는 줄바꿈이에요.' },

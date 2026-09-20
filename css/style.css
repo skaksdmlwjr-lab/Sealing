@@ -1,6 +1,16 @@
 /* 폰트 정의 (구글 폰트 등 활용) */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap');
 
+/* Tailwind v2는 임의값([]) 문법을 지원하지 않아, index.html에 쓰인 값들을 직접 클래스로 정의 */
+.max-h-modal-80 { max-height: 80vh; }
+.max-h-modal-85 { max-height: 85vh; }
+.min-h-question { min-height: 3rem; }
+.min-h-highlight { min-height: 1.5rem; }
+.max-w-tooltip { max-width: 90vw; }
+.z-100 { z-index: 100; }
+.z-150 { z-index: 150; }
+.z-200 { z-index: 200; }
+
 .font-sans { font-family: 'Pretendard', sans-serif; }
 .font-serif { font-family: 'Noto Serif KR', serif; }
 .font-mono { font-family: 'Cascadia Code', monospace; }
