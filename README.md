@@ -46,8 +46,10 @@
 #### 2.6.1 고품질 음성 (신경망 TTS, 선택 기능)
 - 설정 메뉴의 "🎙️ 고품질 음성" 토글로 켤 수 있는 별도 옵션. 기본은 꺼짐(=기존 `speechSynthesis` 그대로 사용).
 - 모델: **MMS-TTS 한국어** ([Xenova/mms-tts-kor](https://huggingface.co/Xenova/mms-tts-kor), 원본 [facebook/mms-tts-kor](https://huggingface.co/facebook/mms-tts-kor), **CC-BY-NC 4.0**, Meta MMS 프로젝트). 브라우저 안에서 [🤗 Transformers.js](https://github.com/xenova/transformers.js)로 100% 로컬 실행(서버 호출 없음).
-- **대부분 자체 호스팅, 모델 파일 하나만 예외**: 라이브러리(`transformers.min.js`)와 WASM 런타임, 모델의 작은 설정 파일(config/tokenizer)은 전부 `js/tts/`에 저장소로 직접 받아서 포함. 다만 **`model.onnx`(fp32, 약 109MB)만은 GitHub의 파일당 100MB 제한에 걸려 저장소에 못 담음** — 대신 이 저장소의 **GitHub Releases**에 별도로 올려두고, `sw.js`가 이 파일 요청만 감지해서 릴리스 주소로 대신 받아오도록 처리함(앱 코드 쪽에서는 평소처럼 로컬 경로로 요청하는 것처럼 동작). 나머지 파일은 토글을 켜는 순간에만 받아오고(최초 1회 다운로드, model.onnx 포함 총 약 120MB), 이후엔 브라우저/서비스워커가 캐싱.
-  - **배포 시 주의**: `model.onnx`는 `.gitignore`에 등록돼 있어 일반적인 커밋·푸시로는 올라가지 않음. 이 파일 자체가 바뀔 때만(예: 다른 음성 모델로 교체) GitHub 저장소의 Releases 메뉴에서 태그 `tts-model-v1`로 새로 릴리스를 만들고 `model.onnx`라는 이름으로 첨부 파일을 업로드해야 함. `sw.js`의 `MODEL_ONNX_RELEASE_URL` 상수가 그 주소를 가리킴.
+- **완전히 자체 호스팅** (같은 출처, 외부 의존 없음): 라이브러리(`transformers.min.js`)와 WASM 런타임, 모델 파일을 전부 `js/tts/`에 저장소로 직접 받아서 포함. 토글을 켜는 순간에만 이 파일들을 받아오고(최초 1회 약 120MB), 이후엔 브라우저/서비스워커가 캐싱.
+  - **`model.onnx`(fp32, 약 109MB)는 GitHub의 파일당 100MB 제한 때문에 통째로 커밋할 수 없어서, `model.onnx.part0` / `model.onnx.part1`(각각 약 55MB)로 쪼개서 저장소에 커밋해둠.** `sw.js`가 앱에서 `model.onnx`를 요청하는 걸 감지하면, 두 조각을 같은 출처에서 받아 메모리에서 합쳐 하나의 응답으로 돌려주고, 합쳐진 결과를 캐시에 저장해둠(다음부터는 재조립 없이 캐시에서 바로 응답).
+  - (시행착오 기록) 처음엔 GitHub Releases에 원본 파일을 올리고 거기서 받아오려 했으나, Release 첨부파일은 `fetch()`에 CORS를 허용하지 않아 실패함(브라우저 다운로드 링크로는 되지만 스크립트로 읽어올 수는 없음). 그래서 같은 출처 안에서 해결되는 "조각 분할" 방식으로 교체함.
+  - **배포 시 주의**: `model.onnx`(합쳐진 원본) 자체는 `.gitignore`에 등록돼 있어 커밋되지 않음. 모델을 교체하는 등 원본 파일이 바뀌면, `.part0`/`.part1`을 다시 만들어서 커밋해야 함(두 파일을 순서대로 이어붙이면 원본이 됨).
 - **정밀도: fp32(원본) 사용, 양자화(int8) 아님.** 양자화 버전(38MB)이 훨씬 작지만 치직거리는 잡음이 들려서 fp32(114MB)로 교체함. fp16(58MB)은 시도해봤으나 WASM 백엔드가 fp16 텐서 연산을 지원하지 않아 타입 오류로 아예 작동하지 않음(`Unsupported model type: vits`).
 - **생성 중 표시**: 음성을 생성하는 동안 🔊 버튼이 "⏳"로 바뀌고 비활성화됨. 음성 생성(WASM 연산)이 브라우저 메인 스레드를 길게 점유하기 때문에, 계산을 시작하기 전에 `requestAnimationFrame` 두 번으로 한 번 화면에 그려질 기회를 준 뒤 시작함(안 그러면 "생성 중" 표시가 화면에 그려지기도 전에 멈춰버릴 수 있음).
 - **절별 캐싱**: 같은 절을 다시 들으면 재생성하지 않고 즉시 재생(Blob URL을 `Map`에 절 텍스트 기준으로 저장). 생성 중에 다른 절로 넘어가면 자동재생은 안 하지만 결과는 캐시에 남겨둠.
@@ -86,8 +88,8 @@
 | `css/tailwind.min.css` | Tailwind 유틸리티 클래스 |
 | `manifest.json` | PWA 매니페스트 |
 | `js/tts/lib/` | 자체 호스팅한 `transformers.js` 라이브러리 + ONNX Runtime Web WASM 런타임 (고품질 음성 기능용, 토글 켤 때만 로드됨) |
-| `js/tts/models/Xenova/mms-tts-kor/` | MMS-TTS 한국어 모델 파일(config/tokenizer는 저장소에 포함, `onnx/model.onnx`만 100MB 제한 때문에 `.gitignore` 처리 후 GitHub Releases에서 받아옴). CC-BY-NC 4.0, 출처 표시 필요 |
-| `.gitignore` | `js/tts/models/.../model.onnx` 하나만 제외(GitHub 100MB 파일 제한) |
+| `js/tts/models/Xenova/mms-tts-kor/` | MMS-TTS 한국어 모델 파일. `onnx/model.onnx`(109MB)는 GitHub 100MB 제한 때문에 `model.onnx.part0`/`.part1`로 쪼개 커밋하고 `sw.js`가 합쳐서 서빙. CC-BY-NC 4.0, 출처 표시 필요 |
+| `.gitignore` | 합쳐진 원본 `model.onnx`만 제외(조각 파일 `.part0`/`.part1`은 추적함) |
 
 ## 5. 기술 스택 / 제약
 
@@ -146,3 +148,5 @@
 - 버전 표시 `v0.260920_08`로 갱신
 - **배포 실패 발견 및 수정**: fp32 `model.onnx`(109MB)가 GitHub 파일당 100MB 제한에 걸려 `git push`가 거부됨. Git LFS는 GitHub Pages가 LFS 파일을 서빙하지 못하는 제약이 있어 사용 불가. `model.onnx`만 `.gitignore` 처리하고 GitHub Releases(태그 `tts-model-v1`)에 별도 업로드, `sw.js`가 이 파일 요청을 감지해 릴리스 주소로 대신 받아오도록 처리. 아직 푸시되지 않았던 로컬 커밋에서 안전하게 파일을 제외함(원격에는 영향 없었음)
 - 버전 표시 `v0.260920_09`로 갱신
+- GitHub Releases 방식이 CORS 미지원으로 실패함을 확인 → `model.onnx`를 `.part0`/`.part1`로 쪼개 저장소에 커밋하고 `sw.js`가 같은 출처에서 두 조각을 받아 합쳐서 서빙하는 방식으로 교체(완전 자체 호스팅 유지, 100MB 제한도 회피)
+- 버전 표시 `v0.260920_10`로 갱신
