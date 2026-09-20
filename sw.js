@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bible-typing-v2';
+const CACHE_NAME = 'bible-typing-v3';
 // 오프라인에서 사용할 파일 목록
 const ASSETS = [
   './index.html',
@@ -29,11 +29,21 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 오프라인 시 캐시된 파일 응답
+// 네트워크 우선: 온라인이면 항상 최신 파일을 받아오고(캐시도 같이 갱신), 실패(오프라인)할 때만 캐시로 대체.
+// sw.js 자체가 안 바뀌어도 app.js/index.html 등이 바뀌면 바로바로 반영되도록 하기 위함
+// (예전의 "캐시 우선" 방식은 sw.js가 바뀔 때만 캐시가 갱신돼서, 다른 파일만 바뀐 배포는 계속 예전 내용을 보여주는 문제가 있었음)
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
+
   e.respondWith(
-    caches.match(e.request).then((response) => {
-      return response || fetch(e.request);
-    })
+    fetch(e.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.ok) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
