@@ -807,7 +807,7 @@ function updateNeuralTtsUI() {
     } else {
         neuralTtsBtn.textContent = '🎙️ 고품질 음성: 꺼짐';
         neuralTtsBtn.className = 'w-full py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-bold transition';
-        neuralTtsStatus.textContent = '켜면 더 자연스러운 목소리로 들을 수 있어요 (최초 1회 약 38MB 다운로드).';
+        neuralTtsStatus.textContent = '켜면 더 자연스러운 목소리로 들을 수 있어요 (최초 1회 약 114MB 다운로드).';
     }
 }
 
@@ -820,7 +820,7 @@ async function loadNeuralTts() {
         env.allowRemoteModels = false;
         env.localModelPath = 'js/tts/models/';
         env.backends.onnx.wasm.wasmPaths = 'js/tts/lib/';
-        neuralSynthesizer = await pipeline('text-to-speech', 'Xenova/mms-tts-kor', { quantized: true });
+        neuralSynthesizer = await pipeline('text-to-speech', 'Xenova/mms-tts-kor', { quantized: false }); // fp32: 양자화 버전은 치직거리는 잡음이 있어 원본 정밀도로 사용
         neuralTtsLoading = false;
         updateNeuralTtsUI();
     } catch (err) {
@@ -833,6 +833,28 @@ async function loadNeuralTts() {
     }
 }
 
+const neuralAudioCache = new Map(); // 절 텍스트 -> 이미 생성한 오디오 Blob URL (같은 절 재생 시 재생성 방지)
+
+function setNeuralGeneratingUI(isGenerating) {
+    if (isGenerating) {
+        ttsBtn.textContent = '⏳';
+        ttsBtn.title = '음성 생성 중...';
+        ttsBtn.disabled = true;
+        ttsBtn.classList.add('animate-pulse', 'opacity-60', 'cursor-wait');
+    } else {
+        ttsBtn.disabled = false;
+        ttsBtn.classList.remove('animate-pulse', 'opacity-60', 'cursor-wait');
+    }
+}
+
+function playNeuralAudioUrl(url) {
+    neuralAudioEl = new Audio(url);
+    neuralAudioEl.onplay = () => setTtsBtnSpeaking(true);
+    neuralAudioEl.onended = () => setTtsBtnSpeaking(false);
+    neuralAudioEl.onerror = () => setTtsBtnSpeaking(false);
+    neuralAudioEl.play().catch(err => console.warn('재생 실패:', err));
+}
+
 async function playNeuralTts() {
     if (neuralGenerating) return;
     if (neuralAudioEl && !neuralAudioEl.paused) {
@@ -842,24 +864,33 @@ async function playNeuralTts() {
     }
     if (!current) return;
 
+    const requestedText = current;
+
+    const cachedUrl = neuralAudioCache.get(requestedText);
+    if (cachedUrl) {
+        playNeuralAudioUrl(cachedUrl);
+        return;
+    }
+
     neuralGenerating = true;
-    ttsBtn.textContent = '⏳';
-    ttsBtn.title = '음성 생성 중...';
+    setNeuralGeneratingUI(true);
+    // 음성 생성(WASM)이 메인 스레드를 오래 점유하므로, 그 전에 "생성 중" 표시가
+    // 실제로 화면에 그려질 기회를 한 번 준 뒤(rAF 2회) 계산을 시작함
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
     try {
-        const romanized = romanizeKorean(current);
+        const romanized = romanizeKorean(requestedText);
         const output = await neuralSynthesizer(romanized);
         const url = URL.createObjectURL(floatTo16BitWav(output.audio, output.sampling_rate));
-        neuralAudioEl = new Audio(url);
-        neuralAudioEl.onplay = () => setTtsBtnSpeaking(true);
-        neuralAudioEl.onended = () => { setTtsBtnSpeaking(false); URL.revokeObjectURL(url); };
-        neuralAudioEl.onerror = () => setTtsBtnSpeaking(false);
-        await neuralAudioEl.play();
+        neuralAudioCache.set(requestedText, url);
+        if (current === requestedText) {
+            playNeuralAudioUrl(url); // 생성되는 동안 다른 절로 넘어갔으면 자동재생하지 않음(캐시엔 남겨둠)
+        }
     } catch (err) {
         console.warn('고품질 음성 생성 실패:', err);
-        setTtsBtnSpeaking(false);
     } finally {
         neuralGenerating = false;
+        setNeuralGeneratingUI(false);
     }
 }
 

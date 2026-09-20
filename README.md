@@ -46,7 +46,11 @@
 #### 2.6.1 고품질 음성 (신경망 TTS, 선택 기능)
 - 설정 메뉴의 "🎙️ 고품질 음성" 토글로 켤 수 있는 별도 옵션. 기본은 꺼짐(=기존 `speechSynthesis` 그대로 사용).
 - 모델: **MMS-TTS 한국어** ([Xenova/mms-tts-kor](https://huggingface.co/Xenova/mms-tts-kor), 원본 [facebook/mms-tts-kor](https://huggingface.co/facebook/mms-tts-kor), **CC-BY-NC 4.0**, Meta MMS 프로젝트). 브라우저 안에서 [🤗 Transformers.js](https://github.com/xenova/transformers.js)로 100% 로컬 실행(서버 호출 없음).
-- **완전히 자체 호스팅**: 라이브러리(`transformers.min.js`)와 WASM 런타임, 모델 파일을 전부 `js/tts/`에 직접 받아서 저장소에 포함(외부 CDN·Hugging Face에 실시간 의존하지 않음). 토글을 켜는 순간에만 이 파일들을 받아오고(최초 1회 약 38MB), 이후엔 브라우저가 캐싱.
+- **대부분 자체 호스팅, 모델 파일 하나만 예외**: 라이브러리(`transformers.min.js`)와 WASM 런타임, 모델의 작은 설정 파일(config/tokenizer)은 전부 `js/tts/`에 저장소로 직접 받아서 포함. 다만 **`model.onnx`(fp32, 약 109MB)만은 GitHub의 파일당 100MB 제한에 걸려 저장소에 못 담음** — 대신 이 저장소의 **GitHub Releases**에 별도로 올려두고, `sw.js`가 이 파일 요청만 감지해서 릴리스 주소로 대신 받아오도록 처리함(앱 코드 쪽에서는 평소처럼 로컬 경로로 요청하는 것처럼 동작). 나머지 파일은 토글을 켜는 순간에만 받아오고(최초 1회 다운로드, model.onnx 포함 총 약 120MB), 이후엔 브라우저/서비스워커가 캐싱.
+  - **배포 시 주의**: `model.onnx`는 `.gitignore`에 등록돼 있어 일반적인 커밋·푸시로는 올라가지 않음. 이 파일 자체가 바뀔 때만(예: 다른 음성 모델로 교체) GitHub 저장소의 Releases 메뉴에서 태그 `tts-model-v1`로 새로 릴리스를 만들고 `model.onnx`라는 이름으로 첨부 파일을 업로드해야 함. `sw.js`의 `MODEL_ONNX_RELEASE_URL` 상수가 그 주소를 가리킴.
+- **정밀도: fp32(원본) 사용, 양자화(int8) 아님.** 양자화 버전(38MB)이 훨씬 작지만 치직거리는 잡음이 들려서 fp32(114MB)로 교체함. fp16(58MB)은 시도해봤으나 WASM 백엔드가 fp16 텐서 연산을 지원하지 않아 타입 오류로 아예 작동하지 않음(`Unsupported model type: vits`).
+- **생성 중 표시**: 음성을 생성하는 동안 🔊 버튼이 "⏳"로 바뀌고 비활성화됨. 음성 생성(WASM 연산)이 브라우저 메인 스레드를 길게 점유하기 때문에, 계산을 시작하기 전에 `requestAnimationFrame` 두 번으로 한 번 화면에 그려질 기회를 준 뒤 시작함(안 그러면 "생성 중" 표시가 화면에 그려지기도 전에 멈춰버릴 수 있음).
+- **절별 캐싱**: 같은 절을 다시 들으면 재생성하지 않고 즉시 재생(Blob URL을 `Map`에 절 텍스트 기준으로 저장). 생성 중에 다른 절로 넘어가면 자동재생은 안 하지만 결과는 캐시에 남겨둠.
 - **한글 → 로마자 변환이 핵심 전제조건**: 이 모델은 원문 한글이 아니라 로마자로 변환된 텍스트를 입력으로 기대함(uroman 방식). `app.js`에 순수 JS로 직접 구현한 한글 음절 분해 기반 로마자 변환기(`romanizeKorean`)가 있음 — 표준 로마자 표기법 규칙 기반의 간이 구현이라 uroman의 세부 규칙과 100% 동일하지는 않을 수 있음.
 - 문장 하나 생성에 수 초 정도 소요(기기 성능에 따라 다름). 생성 중에는 🔊 버튼이 "⏳"로 바뀜.
 - 절 이동/모드 변경 시 재생 중인 신경망 음성도 함께 정지됨(`stopTts()`에서 함께 처리).
@@ -82,7 +86,8 @@
 | `css/tailwind.min.css` | Tailwind 유틸리티 클래스 |
 | `manifest.json` | PWA 매니페스트 |
 | `js/tts/lib/` | 자체 호스팅한 `transformers.js` 라이브러리 + ONNX Runtime Web WASM 런타임 (고품질 음성 기능용, 토글 켤 때만 로드됨) |
-| `js/tts/models/Xenova/mms-tts-kor/` | 자체 호스팅한 MMS-TTS 한국어 모델 파일(config/tokenizer/onnx). CC-BY-NC 4.0, 출처 표시 필요 |
+| `js/tts/models/Xenova/mms-tts-kor/` | MMS-TTS 한국어 모델 파일(config/tokenizer는 저장소에 포함, `onnx/model.onnx`만 100MB 제한 때문에 `.gitignore` 처리 후 GitHub Releases에서 받아옴). CC-BY-NC 4.0, 출처 표시 필요 |
+| `.gitignore` | `js/tts/models/.../model.onnx` 하나만 제외(GitHub 100MB 파일 제한) |
 
 ## 5. 기술 스택 / 제약
 
@@ -135,3 +140,9 @@
 - 버전 표시 `v0.260920_05`로 갱신
 - **고품질 음성(신경망 TTS) 기능 추가**: 설정에서 켜는 선택 옵션. MMS-TTS 한국어 모델(Xenova/mms-tts-kor, CC-BY-NC 4.0)을 `transformers.js`로 브라우저에서 100% 로컬 실행. 라이브러리·WASM 런타임·모델 파일을 전부 `js/tts/`에 직접 받아 자체 호스팅(외부 CDN/Hugging Face 실시간 의존 없음). 한글→로마자 변환기(`romanizeKorean`, 순수 JS 직접 구현)가 없으면 모델이 토큰을 0개 생성해 작동하지 않는다는 것을 프로토타입 과정에서 확인하고 해결함
 - 버전 표시 `v0.260920_06`로 갱신
+- 고품질 음성(신경망 TTS)에서 치직거리는 잡음 보고됨 → 양자화(int8, 38MB) 모델이 원인으로 판단, fp32(원본 정밀도, 114MB)로 교체해 해결. fp16(58MB)은 WASM 백엔드 타입 오류로 사용 불가 확인됨
+- 버전 표시 `v0.260920_07`로 갱신
+- 고품질 음성: 생성 중 표시(⏳ + 비활성화) 추가, 절별 오디오 캐싱 추가(같은 절 재생 시 즉시 재생). 테스트 중 "생성 중" 표시가 화면에 그려지기 전에 무거운 WASM 연산이 메인 스레드를 막아버릴 수 있는 문제를 발견해 `requestAnimationFrame` 두 번으로 페인트를 보장한 뒤 연산을 시작하도록 수정
+- 버전 표시 `v0.260920_08`로 갱신
+- **배포 실패 발견 및 수정**: fp32 `model.onnx`(109MB)가 GitHub 파일당 100MB 제한에 걸려 `git push`가 거부됨. Git LFS는 GitHub Pages가 LFS 파일을 서빙하지 못하는 제약이 있어 사용 불가. `model.onnx`만 `.gitignore` 처리하고 GitHub Releases(태그 `tts-model-v1`)에 별도 업로드, `sw.js`가 이 파일 요청을 감지해 릴리스 주소로 대신 받아오도록 처리. 아직 푸시되지 않았던 로컬 커밋에서 안전하게 파일을 제외함(원격에는 영향 없었음)
+- 버전 표시 `v0.260920_09`로 갱신
