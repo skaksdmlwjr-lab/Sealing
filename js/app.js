@@ -65,7 +65,7 @@ function initBible() {
 
     // [중요] 값 변경 시 즉시 loadQueue를 실행하도록 연결
 	bS.onchange = () => { updateChapters(); loadQueue(true, false); }; // 권/장 선택은 입력창으로 포커스를 옮기지 않음
-	cS.onchange = () => { loadQueue(true, false); };
+	cS.onchange = () => { handleChapterChange(); }; // 장만 바꿔도 절 범위(시작절/끝절)를 새 장에 맞게 갱신
 	sV.oninput = () => { loadQueue(true, false); }; // 절 범위 입력 중에는 입력창으로 포커스를 뺏지 않음
 	eV.oninput = () => { loadQueue(true, false); };
 
