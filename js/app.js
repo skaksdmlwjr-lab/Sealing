@@ -22,13 +22,78 @@ const settingsMenu = document.getElementById('settingsMenu');
 const fontSizeRange = document.getElementById('fontSizeRange');
 const fontSizeValue = document.getElementById('fontSizeValue');
 
+/* ================== 진행 상황 저장/복원 ================== */
+const PRACTICE_SESSION_KEY = 'practiceSession';
+
+function savePracticeSession() {
+	localStorage.setItem(PRACTICE_SESSION_KEY, JSON.stringify({
+		bookIdx: bS.value,
+		chIdx: cS.value,
+		startVerse: sV.value,
+		endVerse: eV.value,
+		index: index,
+		isRandom: isRandom,
+		memory: memory,
+		showTypo: showTypo,
+		userAnswers: userAnswers,
+	}));
+}
+
+// 마지막으로 연습하던 책/장/범위/모드/입력 내용을 복원. 복원할 게 있었으면 true 반환
+// savedSessionRaw는 initBible() 실행 전에 미리 읽어둔 값이어야 함
+// (initBible() 자체가 기본값으로 loadVerse()를 한 번 실행시키면서 savePracticeSession()을 호출해
+//  아직 복원하지도 않은 이전 기록을 기본값으로 덮어써버리기 때문)
+function restorePracticeSession(savedSessionRaw) {
+	let session;
+	try {
+		session = JSON.parse(savedSessionRaw);
+	} catch {
+		return false;
+	}
+	if (!session) return false;
+
+	const book = bibleData.books[session.bookIdx];
+	if (!book || !book.chapters[session.chIdx]) return false; // 저장된 위치가 더 이상 유효하지 않으면 기본값 유지
+
+	// 모드/입력 내용부터 복원 (버튼 스타일 반영은 호출부에서 initBtnStyles()가 처리)
+	isRandom = !!session.isRandom;
+	memory = !!session.memory;
+	showTypo = session.showTypo !== undefined ? !!session.showTypo : true;
+	userAnswers = session.userAnswers || {};
+
+	// 권 선택 + 장 목록 재구성 (handleChapterChange를 거치지 않아 절 범위가 자동 리셋되지 않음)
+	bS.value = session.bookIdx;
+	cS.innerHTML = '';
+	book.chapters.forEach((ch, idx) => {
+		const opt = document.createElement('option');
+		opt.value = idx;
+		opt.textContent = (idx + 1) + '장';
+		cS.appendChild(opt);
+	});
+	cS.value = session.chIdx;
+
+	// 절 범위도 저장된 값 그대로 복원
+	sV.value = session.startVerse || 1;
+	eV.value = session.endVerse || '';
+
+	loadQueue(false, false); // forceReset=false → 위에서 복원한 userAnswers를 지우지 않음
+
+	const restoredIndex = Number(session.index) || 0;
+	index = Math.min(Math.max(restoredIndex, 0), Math.max(verseQueue.length - 1, 0));
+	loadVerse(false);
+
+	return true;
+}
+
 /* ================== 초기 로드 ================== */
 window.onload = () => {
     if (typeof bibleData === 'undefined') {
         alert("Bible.js 데이터를 로드할 수 없습니다. 파일 경로를 확인하세요.");
         return;
     }
+    const savedSessionRaw = localStorage.getItem(PRACTICE_SESSION_KEY); // initBible()이 기본값을 저장해버리기 전에 미리 읽어둠
     initBible();
+	restorePracticeSession(savedSessionRaw); // 이전 진행 상황이 있으면 이어서 시작
     initBtnStyles();
 	updateTypoState();
 	initDarkMode();//다크모드
@@ -185,14 +250,17 @@ function loadVerse(shouldFocus = true) {
     // 화면 이동 시 오타 표시도 현재 입력값에 맞게 갱신
     updateHighlight();
     if (shouldFocus) iEl.focus();
+
+    savePracticeSession(); // 진행 상황(책/장/범위/모드/현재 위치)을 저장해 새로고침해도 이어서 볼 수 있게
 }
 
 // 오타 체크 및 자동 넘김
 iEl.oninput = function() {
     const item = verseQueue[index];
-    
+
     // [핵심] 사용자가 타이핑할 때마다 해당 절 번호에 입력값을 실시간 저장
     userAnswers[item.v] = iEl.value;
+    savePracticeSession(); // 새로고침해도 타이핑 중이던 내용이 안 날아가도록 저장
 
     updateHighlight();
 
@@ -579,77 +647,174 @@ function getChapterVerseCount(bookTitle, chapterNum) {
     return chapter ? chapter.verses.length : 0;
 }
 
+function getBookVerseCount(bookTitle) {
+    const book = bibleData.books.find(b => b.title === bookTitle);
+    return book ? book.chapters.reduce((sum, c) => sum + c.verses.length, 0) : 0;
+}
+
+// bestAccuracy가 100(완벽히 맞춘 적 있음)인 절만 "외운 절"로 집계
+function countMemorized(verseStatsArray) {
+    return verseStatsArray.filter(s => s.bestAccuracy === 100).length;
+}
+
 function accuracyColorClass(accuracy) {
     if (accuracy >= 90) return 'bg-green-500';
     if (accuracy >= 50) return 'bg-yellow-400';
     return 'bg-red-400';
 }
 
+let cachedBookGroups = null; // 정렬 방식만 바뀔 때 다시 계산하지 않고 재사용
+
+// 절 기록들을 권 -> 장 -> 절 구조로 그룹화
+function buildBookGroups(stats) {
+    const bookGroups = {};
+    Object.values(stats).forEach(stat => {
+        if (!bookGroups[stat.book]) bookGroups[stat.book] = { book: stat.book, chapters: {} };
+        const chapters = bookGroups[stat.book].chapters;
+        if (!chapters[stat.ch]) chapters[stat.ch] = { ch: stat.ch, verses: {} };
+        chapters[stat.ch].verses[stat.v] = stat;
+    });
+    return bookGroups;
+}
+
+// 권 하나의 요약 수치(외운 절 수 / 권 전체 절 수, 최근 연습 시각, 연습한 장 수)
+function bookGroupSummary(bookGroup) {
+    const allVerseStats = Object.values(bookGroup.chapters).flatMap(c => Object.values(c.verses));
+    const memorizedCount = countMemorized(allVerseStats);
+    const totalVerses = getBookVerseCount(bookGroup.book) || allVerseStats.length;
+    const latest = Math.max(...allVerseStats.map(s => s.lastPracticedAt || new Date(s.lastPracticed).getTime()));
+    return { memorizedCount, totalVerses, latest, chapterCount: Object.keys(bookGroup.chapters).length };
+}
+
+function sortBookGroups(bookGroups, sortMode) {
+    const list = Object.values(bookGroups);
+    if (sortMode === 'accuracy') {
+        // 암기율(외운 절 / 전체 절) 낮은(=복습이 필요한) 권이 위로
+        list.sort((a, b) => {
+            const sa = bookGroupSummary(a), sb = bookGroupSummary(b);
+            return (sa.memorizedCount / sa.totalVerses) - (sb.memorizedCount / sb.totalVerses);
+        });
+    } else if (sortMode === 'order') {
+        // 성경 정경 순서(창세기 -> 요한계시록)
+        list.sort((a, b) => {
+            const aIdx = bibleData.books.findIndex(bk => bk.title === a.book);
+            const bIdx = bibleData.books.findIndex(bk => bk.title === b.book);
+            return aIdx - bIdx;
+        });
+    } else {
+        // 최근 공부 순 (기본값)
+        list.sort((a, b) => bookGroupSummary(b).latest - bookGroupSummary(a).latest);
+    }
+    return list;
+}
+
+function renderChapterRow(bookTitle, chGroup) {
+    const practicedVerses = Object.values(chGroup.verses);
+    const totalVerses = getChapterVerseCount(bookTitle, chGroup.ch) || practicedVerses.length;
+    const memorizedCount = countMemorized(practicedVerses);
+
+    let cellsHTML = '';
+    for (let v = 1; v <= totalVerses; v++) {
+        const stat = chGroup.verses[String(v)];
+        const cls = stat ? accuracyColorClass(stat.lastAccuracy) : 'bg-gray-200';
+        const title = stat
+            ? `${v}절 · 정확도 ${stat.lastAccuracy}% · ${stat.count}회 연습`
+            : `${v}절 · 아직 연습 안 함`;
+        cellsHTML += `<div class="${cls} rounded-sm" style="width:9px;height:9px" title="${title}"></div>`;
+    }
+
+    const percent = totalVerses > 0 ? Math.round((memorizedCount / totalVerses) * 100) : 0;
+
+    const row = document.createElement('div');
+    row.className = 'py-2 border-t first:border-0';
+    row.innerHTML = `
+        <div class="flex justify-between items-baseline mb-1">
+            <span class="font-bold text-gray-700 text-xs">${chGroup.ch}장</span>
+            <span class="text-xs text-gray-400">외운 절 ${memorizedCount}/${totalVerses} (${percent}%)</span>
+        </div>
+        <div class="flex flex-wrap gap-1">${cellsHTML}</div>
+    `;
+    return row;
+}
+
+// 권 하나를 접고 펼 수 있는 아코디언 항목으로 렌더링 (펼치면 장별 진행도가 나열됨)
+function renderBookAccordion(bookGroup) {
+    const { memorizedCount, totalVerses, chapterCount } = bookGroupSummary(bookGroup);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'border rounded-lg overflow-hidden';
+
+    const percent = totalVerses > 0 ? Math.round((memorizedCount / totalVerses) * 100) : 0;
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'stats-accordion-header w-full p-3 bg-gray-50 hover:bg-gray-100 transition text-left';
+    header.innerHTML = `
+        <div class="flex justify-between items-center">
+            <span class="font-bold text-gray-700 text-sm">${bookGroup.book}</span>
+            <span class="flex items-center gap-2 text-xs text-gray-400">
+                <span>${chapterCount}장 연습 · 외운 절 ${memorizedCount}/${totalVerses} (${percent}%)</span>
+                <span class="stats-accordion-arrow">▸</span>
+            </span>
+        </div>
+        <div class="stats-progress-track w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-2">
+            <div class="h-full bg-green-500 rounded-full" style="width:${percent}%"></div>
+        </div>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'hidden px-3 pb-3';
+    Object.values(bookGroup.chapters)
+        .sort((a, b) => Number(a.ch) - Number(b.ch))
+        .forEach(chGroup => body.appendChild(renderChapterRow(bookGroup.book, chGroup)));
+
+    header.onclick = () => {
+        body.classList.toggle('hidden');
+        header.querySelector('.stats-accordion-arrow').textContent = body.classList.contains('hidden') ? '▸' : '▾';
+    };
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    return wrapper;
+}
+
+function renderStatsContent(sortMode) {
+    const contentEl = document.getElementById('statsContent');
+    contentEl.innerHTML = '';
+
+    if (!cachedBookGroups || Object.keys(cachedBookGroups).length === 0) {
+        contentEl.innerHTML = '<p class="text-center text-gray-400 py-8">아직 채점 기록이 없어요. 암기모드로 연습을 마치면 여기 기록이 쌓여요.</p>';
+        return;
+    }
+
+    sortBookGroups(cachedBookGroups, sortMode).forEach(bookGroup => {
+        contentEl.appendChild(renderBookAccordion(bookGroup));
+    });
+}
+
 function openStatsModal() {
     const stats = getVerseStats();
     const entries = Object.values(stats);
     const summaryEl = document.getElementById('statsSummary');
-    const contentEl = document.getElementById('statsContent');
-    contentEl.innerHTML = '';
 
     if (entries.length === 0) {
         summaryEl.innerHTML = '';
-        contentEl.innerHTML = '<p class="text-center text-gray-400 py-8">아직 채점 기록이 없어요. 암기모드로 연습을 마치면 여기 기록이 쌓여요.</p>';
+        cachedBookGroups = {};
+        renderStatsContent('recent');
         document.getElementById('statsModal').classList.remove('hidden');
         return;
     }
 
     // 전체 요약
-    const avgAccuracy = Math.round(entries.reduce((sum, s) => sum + s.lastAccuracy, 0) / entries.length);
-    const masteredCount = entries.filter(s => s.bestAccuracy === 100).length;
+    const masteredCount = countMemorized(entries);
+    const masteredPercent = Math.round((masteredCount / entries.length) * 100);
     summaryEl.innerHTML = `
         <div><div class="text-xl font-bold text-blue-600">${entries.length}</div><div class="text-xs text-gray-400">연습한 절</div></div>
-        <div><div class="text-xl font-bold text-green-600">${masteredCount}</div><div class="text-xs text-gray-400">완벽 암기</div></div>
-        <div><div class="text-xl font-bold text-gray-700">${avgAccuracy}%</div><div class="text-xs text-gray-400">평균 정확도</div></div>
+        <div><div class="text-xl font-bold text-green-600">${masteredCount} <span class="text-sm">(${masteredPercent}%)</span></div><div class="text-xs text-gray-400">외운 절</div></div>
     `;
 
-    // 권/장 단위로 그룹화
-    const groups = {}; // "책-장" -> { book, ch, verses: { 절번호: 기록 } }
-    entries.forEach(stat => {
-        const groupKey = `${stat.book}-${stat.ch}`;
-        if (!groups[groupKey]) groups[groupKey] = { book: stat.book, ch: stat.ch, verses: {} };
-        groups[groupKey].verses[stat.v] = stat;
-    });
-
-    // 최근 연습한 장이 위로 오도록 정렬 (같은 날짜끼리도 실제 시각 기준으로 구분)
-    const statTimestamp = (s) => s.lastPracticedAt || new Date(s.lastPracticed).getTime();
-    const sortedGroups = Object.values(groups).sort((a, b) => {
-        const aLatest = Math.max(...Object.values(a.verses).map(statTimestamp));
-        const bLatest = Math.max(...Object.values(b.verses).map(statTimestamp));
-        return bLatest - aLatest;
-    });
-
-    sortedGroups.forEach(group => {
-        const practicedVerses = Object.values(group.verses);
-        const totalVerses = getChapterVerseCount(group.book, group.ch) || practicedVerses.length;
-        const avgAcc = Math.round(practicedVerses.reduce((sum, s) => sum + s.lastAccuracy, 0) / practicedVerses.length);
-
-        let cellsHTML = '';
-        for (let v = 1; v <= totalVerses; v++) {
-            const stat = group.verses[String(v)];
-            const cls = stat ? accuracyColorClass(stat.lastAccuracy) : 'bg-gray-200';
-            const title = stat
-                ? `${v}절 · 정확도 ${stat.lastAccuracy}% · ${stat.count}회 연습`
-                : `${v}절 · 아직 연습 안 함`;
-            cellsHTML += `<div class="${cls} rounded-sm" style="width:9px;height:9px" title="${title}"></div>`;
-        }
-
-        const card = document.createElement('div');
-        card.className = 'border rounded-lg p-3';
-        card.innerHTML = `
-            <div class="flex justify-between items-baseline mb-2">
-                <span class="font-bold text-gray-700 text-sm">${group.book} ${group.ch}장</span>
-                <span class="text-xs text-gray-400">${practicedVerses.length}/${totalVerses}절 · 평균 ${avgAcc}%</span>
-            </div>
-            <div class="flex flex-wrap gap-1">${cellsHTML}</div>
-        `;
-        contentEl.appendChild(card);
-    });
+    cachedBookGroups = buildBookGroups(stats);
+    renderStatsContent(document.getElementById('statsSortSelect').value);
 
     document.getElementById('statsModal').classList.remove('hidden');
 }
@@ -657,6 +822,10 @@ function openStatsModal() {
 function closeStatsModal() {
     document.getElementById('statsModal').classList.add('hidden');
 }
+
+document.getElementById('statsSortSelect').onchange = (e) => {
+    renderStatsContent(e.target.value);
+};
 
 document.getElementById('statsBtn').onclick = () => {
     settingsMenu.classList.add('hidden');
@@ -667,6 +836,13 @@ document.getElementById('statsResetBtn').onclick = () => {
         localStorage.removeItem(VERSE_STATS_KEY);
         openStatsModal();
     }
+};
+
+// 학습 기록을 PDF로 저장 (브라우저 내장 인쇄 기능 이용 — 인쇄 대화상자에서 "PDF로 저장" 선택)
+document.getElementById('statsPrintBtn').onclick = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('statsPrintDate').textContent = `출력일: ${today}`;
+    window.print();
 };
 
 /* ================== 도움말 모달 ================== */

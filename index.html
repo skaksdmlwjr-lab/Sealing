@@ -13,7 +13,7 @@
   <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-2xl">
     
     <div class="flex justify-between items-center mb-6 relative">
-      <h1 class="text-xl sm:text-2xl font-bold text-gray-800">⌨️ 성경 타자 · 암송 <span class="text-xs font-normal text-gray-400 align-middle">v0.260927_03</span></h1>
+      <h1 class="text-xl sm:text-2xl font-bold text-gray-800">⌨️ 성경 타자 · 암송 <span class="text-xs font-normal text-gray-400 align-middle">v0.260927_09</span></h1>
       
       <div class="relative">
         <button id="settingsBtn" class="bg-gray-200 p-2 rounded-full hover:bg-gray-300 transition focus:outline-none">
@@ -138,10 +138,20 @@
             <h2 class="text-2xl font-bold text-gray-800">📊 학습 기록</h2>
             <button onclick="closeStatsModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
         </div>
-        <div id="statsSummary" class="px-6 pt-4 grid grid-cols-3 gap-2 text-center"></div>
-        <div id="statsContent" class="p-6 overflow-y-auto space-y-3 flex-1 text-sm"></div>
+        <p id="statsPrintDate" class="hidden px-6 pt-2 text-xs text-gray-400"></p>
+        <div id="statsSummary" class="px-6 pt-4 grid grid-cols-2 gap-2 text-center"></div>
+        <div class="px-6 pt-3 flex justify-end items-center gap-2">
+            <label for="statsSortSelect" class="text-xs text-gray-400">정렬</label>
+            <select id="statsSortSelect" class="text-xs border rounded p-1 bg-gray-50 text-gray-700">
+                <option value="recent">최근 공부 순</option>
+                <option value="accuracy">암기율 순</option>
+                <option value="order">성경 순서</option>
+            </select>
+        </div>
+        <div id="statsContent" class="p-6 overflow-y-auto space-y-2 flex-1 text-sm"></div>
         <div class="p-4 border-t flex justify-between items-center">
             <button id="statsResetBtn" class="text-xs text-gray-400 underline hover:text-gray-600">기록 초기화</button>
+            <button id="statsPrintBtn" class="text-xs text-blue-600 underline hover:text-blue-800">🖨️ PDF로 저장</button>
             <button onclick="closeStatsModal()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-blue-700 transition">확인</button>
         </div>
     </div>

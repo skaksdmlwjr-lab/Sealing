@@ -285,6 +285,142 @@ body.dark #scoreContent {
     border: 1px solid #4a5568;
 }
 
+/* 학습 기록 권(book) 아코디언 헤더도 neuralTtsBtn과 같은 이유로 배경(bg-gray-50)이
+   다크모드에서 안 바뀌는데 글자만 흰색이 되어 대비가 안 좋았음. 어두운 배경/글자로 되돌림 */
+body.dark .stats-accordion-header {
+    background-color: #374151 !important;
+    color: #f9fafb !important;
+}
+body.dark .stats-accordion-header:hover {
+    background-color: #4b5563 !important;
+}
+body.dark .stats-accordion-header .text-gray-400 {
+    color: #cbd5e0 !important;
+}
+body.dark .stats-progress-track {
+    background-color: #4b5563 !important;
+}
+
+/* 학습 기록 PDF로 저장 (브라우저 인쇄 기능 이용, window.print()) — 모달 스킨을 벗기고 보고서 형태로 재구성 */
+@media print {
+    @page {
+        margin: 1.6cm;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+    #statsModal, #statsModal * {
+        visibility: visible;
+    }
+
+    /* 모달 껍데기(배경 어둡게, 고정 위치, 카드 그림자/둥근 모서리)를 전부 벗겨서 일반 문서처럼 만듦 */
+    #statsModal {
+        position: static !important;
+        background: none !important;
+        display: block !important;
+        padding: 0 !important;
+    }
+    #statsModal > div {
+        max-width: none !important;
+        max-height: none !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        display: block !important;
+    }
+    #statsContent {
+        overflow: visible !important;
+        max-height: none !important;
+        padding: 0 !important;
+    }
+    /* 접혀있던 권도 인쇄할 땐 전부 펼쳐서 보여줌 */
+    #statsContent .hidden {
+        display: block !important;
+    }
+
+    /* 문서 제목 영역 */
+    #statsModal .p-6.border-b {
+        padding: 0 0 14px 0 !important;
+        margin-bottom: 6px !important;
+        border-bottom: 2px solid #111827 !important;
+    }
+    #statsModal .p-6.border-b h2 {
+        font-family: 'Noto Serif KR', serif !important;
+        font-size: 22pt !important;
+    }
+    #statsPrintDate {
+        display: block !important;
+        padding: 0 !important;
+        margin-bottom: 18px !important;
+        font-size: 10pt !important;
+    }
+
+    /* 요약 수치: 카드가 아니라 문서 상단 통계처럼 */
+    #statsSummary {
+        padding: 0 0 16px 0 !important;
+        margin-bottom: 16px !important;
+        border-bottom: 1px solid #9ca3af !important;
+    }
+    #statsSummary .text-xl {
+        font-size: 20pt !important;
+    }
+
+    /* 권 목록: 둥근 카드 대신 얇은 구분선으로 나열되는 문서형 목록 */
+    #statsContent {
+        display: block !important;
+    }
+    #statsContent > div {
+        border: none !important;
+        border-radius: 0 !important;
+        border-bottom: 1px solid #d1d5db !important;
+        margin-bottom: 0 !important;
+        break-inside: avoid;
+    }
+    #statsContent > div:last-child {
+        border-bottom: none !important;
+    }
+    .stats-accordion-header {
+        background: none !important;
+        padding: 12px 0 !important;
+    }
+    /* 화면에서는 제목/요약이 한 줄에 나란히 있었지만, 인쇄용 큰 제목 글꼴과는 안 맞아서
+       위아래로 쌓는 문서형 레이아웃으로 바꿈 */
+    .stats-accordion-header > div:first-child {
+        display: block !important;
+    }
+    .stats-accordion-header > div:first-child > span:first-child {
+        display: block !important;
+        font-family: 'Noto Serif KR', serif !important;
+        font-size: 13pt !important;
+        margin-bottom: 4px !important;
+    }
+    .stats-accordion-header > div:first-child > span:last-child {
+        display: block !important;
+        font-size: 10pt !important;
+    }
+    .stats-progress-track {
+        background-color: #e5e7eb !important;
+        margin-top: 8px !important;
+    }
+    /* 장 목록도 카드 느낌을 빼고 살짝 들여쓰기 */
+    .stats-accordion-header + div {
+        padding: 0 0 12px 4px !important;
+    }
+
+    /* 화면에서만 의미있는 요소는 인쇄에서 제외.
+       주의: 권 이름이 아코디언 헤더(버튼)에 들어있어서 버튼을 통째로 숨기면 안 됨 —
+       상단 닫기 버튼 / 하단 초기화·PDF·확인 버튼만 콕 집어서 숨김 */
+    #statsModal .stats-accordion-arrow,
+    #statsModal > div > .border-b button,
+    #statsModal > div > .border-t button,
+    #statsModal select,
+    #statsModal label[for="statsSortSelect"] {
+        display: none !important;
+    }
+}
+
 /* 3. '원문' 텍스트: 형광 느낌의 밝은 하늘색 (드래그 안 해도 잘 보임) */
 body.dark .text-blue-600 {
     color: #60a5fa !important; 
