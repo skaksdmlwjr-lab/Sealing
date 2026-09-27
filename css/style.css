@@ -134,12 +134,20 @@ body.dark .shadow-xl, body.dark .shadow-2xl {
 }
 
 /* 다크모드 설정창 텍스트 가독성 강화 */
-body.dark #settingsMenu label, 
-body.dark #settingsMenu h3, 
+body.dark #settingsMenu label,
+body.dark #settingsMenu h3,
 body.dark #settingsMenu .text-gray-700,
 body.dark #settingsMenu .text-gray-800 {
     color: #f9fafb !important; /* 거의 흰색에 가까운 밝은 회색 */
     font-weight: 600;           /* 글자를 조금 더 두껍게 해서 시인성 확보 */
+}
+
+/* "고품질 음성: 꺼짐" 버튼은 다크모드에서도 배경이 밝은 회색(bg-gray-200) 그대로인데,
+   위 공통 규칙(text-gray-700 → 밝은 색) 때문에 밝은 배경에 밝은 글씨가 되어 대비가 안 좋았음.
+   이 버튼만 어두운 글씨로 되돌림 (위 규칙보다 뒤에 있어야 우선 적용됨) */
+body.dark #neuralTtsBtn.bg-gray-200 {
+    color: #374151 !important;
+    font-weight: bold;
 }
 
 /* 성구 크기 숫자 표시 부분 */
