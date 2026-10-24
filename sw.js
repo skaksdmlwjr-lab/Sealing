@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bible-typing-v3';
+const CACHE_NAME = 'bible-typing-v4';
 // 오프라인에서 사용할 파일 목록
 const ASSETS = [
   './index.html',
@@ -81,8 +81,12 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // GitHub Pages가 정적 파일에 Cache-Control(수분 단위)을 붙여서, 그냥 fetch(e.request)만 쓰면
+  // 서비스워커 캐시가 아니라 "브라우저 자체 HTTP 캐시"에 걸려 네트워크까지도 안 가고 예전 파일이
+  // 그대로 돌아올 수 있음 — cache:'reload'로 그 HTTP 캐시 조회를 건너뛰고 항상 네트워크로 가게 함
+  const freshRequest = new Request(e.request, { cache: 'reload' });
   e.respondWith(
-    fetch(e.request)
+    fetch(freshRequest)
       .then((networkResponse) => {
         if (networkResponse && networkResponse.ok) {
           const copy = networkResponse.clone();
